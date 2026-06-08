@@ -1,60 +1,93 @@
-# Instagram Unfollowers
+# 📱 Instagram Unfollowers
 
-[![Maintenance](https://img.shields.io/maintenance/yes/2024)](https://github.com/davidarroyo1234/InstagramUnfollowers)
+[![Maintenance](https://img.shields.io/maintenance/yes/2026)](https://github.com/davidarroyo1234/InstagramUnfollowers)
 
 A nifty tool that lets you see who doesn't follow you back on Instagram.  
 <u>Browser-based and requires no downloads or installations!</u>
 
-## **WARNING**
+## ⚠️ WARNING
 
 This version utilizes the Instagram API for better performance.  
 
-## Usage
+## 🖥️ Desktop Usage
 
-### Steps:
-
-1.  Copy the following code from this url. (This has been moved to this site, because the repository was taking too long to load with so many characters.The web site only shows the compiled and minified code. )
-
-### https://davidarroyo1234.github.io/InstagramUnfollowers/
+1. Copy the code from: [InstagramUnfollowers Tool](https://davidarroyo1234.github.io/InstagramUnfollowers/)
 
 2. Press the COPY button to copy the code.
 
-    <img src="./assets/copy_code.png" alt="Initial screen" />
+    <img src="./assets/copy_code.png" alt="Copy code button" />
 
-3. Once you have copied the code, you can close this page and go to the instagram website
+3. Go to Instagram website and log in to your account
 
-4. Log in into your account and open the developer console or (Ctrl+Shift+J(Windows) || ⌘+⌥+I (Mac os)) and paste the code.
+4. Open the developer console:
+   - Windows: `Ctrl + Shift + J`
+   - Mac OS: `⌘ + ⌥ + I`
 
-5. You will be met with the following interface:
+5. Paste the code and you'll see this interface:
 
- <img src="./assets/initial.png" alt="Initial screen" />
+    <img src="./assets/initial.png" alt="Initial screen" />
 
-6. Click "RUN" to start scanning for users who do not follow you back.
+6. Click "RUN" to start scanning
 
-7. Once it finishes printing the users, you will be met with the following screen which will show you the results:
+7. After scanning completes, you'll see the results:
 
- <img src="./assets/results.png" alt="Results screen" />
+    <img src="./assets/results.png" alt="Results screen" />
 
-8. To add some user to the whitelist, click in the profile image of the user. This will add the user to the whitelist and will not show up in the results anymore.
+8. 🤍 Whitelist users by clicking their profile image
 
-9. If you wish to un-follow any of these users, you can select 1 or more of them via the checkbox next to each user.
+9. 💾 Manage your whitelist via Settings:
+   - Export: Save your whitelist as a JSON backup file
+   - Import: Restore or merge whitelisted users from a file
+   - Clear: Remove all users from whitelist
+   
+   Your whitelist persists between sessions automatically!
 
-10. With the latest version, you can now tweak and customize the timings of the script. You can do this by clicking on the "Settings" button.
+    <img src="./assets/settings_whitelist.png" alt="Settings screen" />
 
- <img src="./assets/settings.png" alt="Settings screen" />
-## Notes
+10. ✅ Select users to unfollow using the checkboxes
 
-**_The more users you have to check, more time it will take_**
+11. ⚙️ Customize script timings via the "Settings" button:
 
-**_This script has been tested only on Chromium-based browsers_**
+    <img src="./assets/settings.png" alt="Settings screen" />
 
-## DEV
+## 📱 Mobile Usage
 
-Node version: 16.14.0 (If using nvm use the comand "nvm use")
-When introducing new changes to `main.tsx`, make sure to run the "build" command in-order to automatically format, compress, and convert your code. (In the future will be automatic).
+For Android users who want to use it on mobile:
 
-## Legal
+1. Download the latest version of [Eruda Android Browser](https://github.com/liriliri/eruda-android/releases/)
+2. Open Instagram web through the Eruda browser
+3. Follow the same steps as desktop (the console will be automatically available when clicking the eruda icon)
 
-**Disclaimer:** This is not affiliated, associated, authorized, endorsed by, or in any way officially connected with Instagram.
+## ⚡ Performance Notes
 
-Use it at your own risk!.
+- Processing time increases with the number of users to check
+- Script works on both Chromium and Firefox-based browsers
+- The script takes a few more seconds to load on mobile
+- Whitelist data is stored locally in your browser (localStorage)
+
+## ✨ Features
+
+- 🔍 Scan and identify users who don't follow you back
+- 🤍 Whitelist system to protect specific accounts from unfollowing
+- 💾 Export/Import whitelist functionality for backup and transfer
+- ⚙️ Customizable timing settings to avoid rate limits
+- 🎨 Clean, minimalist interface inspired by Apple design
+- 📱 Fully responsive - works on desktop and mobile
+- 🔒 All data stored locally - no external servers
+
+## 🛠️ Development
+
+- Node version: 16.14.0 (If using nvm, run `nvm use`)
+- After modifying `main.tsx`, run the "build" command to format, compress, and convert your code
+- Automatic re-building can be done using nodemon build-dev
+
+## ⚖️ Legal & License
+
+**Disclaimer:** This tool is not affiliated, associated, authorized, endorsed by, or officially connected with Instagram.
+
+⚠️ Use at your own risk!
+
+📜 Licensed under the [MIT License](LICENSE)
+- ✅ Free to use, copy, and modify
+- 🤝 Open source and community-friendly
+- 📋 See [LICENSE](LICENSE) file for full terms

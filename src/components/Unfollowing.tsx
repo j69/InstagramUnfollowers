@@ -19,8 +19,12 @@ export const Unfollowing = (
   }
 
   return (
-    <section className="flex">
+    <section className="workspace-layout">
       <aside className="app-sidebar">
+        <div className="panel-heading">
+          <span>Unfollow Queue</span>
+          <strong>{state.percentage}%</strong>
+        </div>
         <menu className="flex column grow m-clear p-clear">
           <p>Filter</p>
           <label className="badge m-small">
@@ -65,8 +69,8 @@ export const Unfollowing = (
                   &nbsp;{entry.user.username}
                 </a>
                 <span className="clr-cyan">
-                                            &nbsp; [{index + 1}/{state.selectedResults.length}]
-                                        </span>
+                  &nbsp; [{index + 1}/{state.selectedResults.length}]
+                </span>
               </div>
             ) : (
               <div className="p-medium clr-red" key={entry.user.id}>

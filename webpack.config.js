@@ -33,4 +33,12 @@ module.exports = {
         filename: 'dist.js',
         path: path.resolve(__dirname, 'dist'),
     },
+    devServer: {
+        client: {
+            overlay: {
+                errors: true,
+                warnings: false,
+            },
+        },
+    },
 };

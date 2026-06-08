@@ -1,7 +1,9 @@
 import React from "react";
-import { assertUnreachable, getCurrentPageUnfollowers, getMaxPage, getUsersForDisplay } from "../utils/utils";
+import { assertUnreachable, getCurrentPageUnfollowers, getMaxPage, getUsersForDisplay, isWithoutProfilePicture } from "../utils/utils";
 import { State } from "../model/state";
 import { UserNode } from "../model/user";
+import { WHITELISTED_RESULTS_STORAGE_KEY } from "../constants/constants";
+
 
 export interface SearchingProps {
   state: State;
@@ -15,15 +17,15 @@ export interface SearchingProps {
 }
 
 export const Searching = ({
-                            state,
-                            setState,
-                            scanningPaused,
-                            pauseScan,
-                            handleScanFilter,
-                            toggleUser,
-                            UserCheckIcon,
-                            UserUncheckIcon,
-                          }: SearchingProps) => {
+  state,
+  setState,
+  scanningPaused,
+  pauseScan,
+  handleScanFilter,
+  toggleUser,
+  UserCheckIcon,
+  UserUncheckIcon,
+}: SearchingProps) => {
   if (state.status !== "scanning") {
     return null;
   }
@@ -43,91 +45,169 @@ export const Searching = ({
   };
 
   return (
-    <section className="flex">
+    <section className="workspace-layout">
       <aside className="app-sidebar">
-        <menu className="flex column m-clear p-clear">
-          <p>Filter</p>
-          <label className="badge m-small">
-            <input
-              type="checkbox"
-              name="showNonFollowers"
-              checked={state.filter.showNonFollowers}
-              onChange={handleScanFilter}
-            />
-            &nbsp;Non-Followers
-          </label>
-          <label className="badge m-small">
-            <input
-              type="checkbox"
-              name="showFollowers"
-              checked={state.filter.showFollowers}
-              onChange={handleScanFilter}
-            />
-            &nbsp;Followers
-          </label>
-          <label className="badge m-small">
-            <input
-              type="checkbox"
-              name="showVerified"
-              checked={state.filter.showVerified}
-              onChange={handleScanFilter}
-            />
-            &nbsp;Verified
-          </label>
-          <label className="badge m-small">
-            <input
-              type="checkbox"
-              name="showPrivate"
-              checked={state.filter.showPrivate}
-              onChange={handleScanFilter}
-            />
-            &nbsp;Private
-          </label>
-        </menu>
-        <div className="grow">
-          <p>Displayed: {usersForDisplay.length}</p>
-          <p>Total: {state.results.length}</p>
-        </div>
-        {/* Scan controls */}
-        <div className="controls">
-          <button
-            className="button-control button-pause"
-            onClick={pauseScan}
-          >
-            {scanningPaused ? "Resume" : "Pause"}
-          </button>
-        </div>
-        <div className="grow t-center">
-          <p>Pages</p>
-          <a
-            onClick={() => {
-              if (state.page - 1 > 0) {
-                setState({
-                  ...state,
-                  page: state.page - 1,
-                });
-              }
-            }}
-            className="p-medium"
-          >
-            ❮
-          </a>
-          <span>
-            {state.page}&nbsp;/&nbsp;{getMaxPage(usersForDisplay)}
-          </span>
-          <a
-            onClick={() => {
-              if (state.page < getMaxPage(usersForDisplay)) {
-                setState({
-                  ...state,
-                  page: state.page + 1,
-                });
-              }
-            }}
-            className="p-medium"
-          >
-            ❯
-          </a>
+        <div className="sidebar-content">
+          <div className="panel-heading">
+            <span>Scanner</span>
+            <strong>{state.percentage}%</strong>
+          </div>
+          <menu className="sidebar-filters-grid">
+            <p>Filter</p>
+            <label className="badge m-small">
+              <input
+                type="checkbox"
+                name="showNonFollowers"
+                checked={state.filter.showNonFollowers}
+                onChange={handleScanFilter}
+              />
+              &nbsp;Non-Followers
+            </label>
+            <label className="badge m-small">
+              <input
+                type="checkbox"
+                name="showFollowers"
+                checked={state.filter.showFollowers}
+                onChange={handleScanFilter}
+              />
+              &nbsp;Followers
+            </label>
+            <label className="badge m-small">
+              <input
+                type="checkbox"
+                name="showVerified"
+                checked={state.filter.showVerified}
+                onChange={handleScanFilter}
+              />
+              &nbsp;Verified
+            </label>
+            <label className="badge m-small">
+              <input
+                type="checkbox"
+                name="showPrivate"
+                checked={state.filter.showPrivate}
+                onChange={handleScanFilter}
+              />
+              &nbsp;Private
+            </label>
+            <label className="badge m-small">
+              <input
+                type="checkbox"
+                name="showWithOutProfilePicture"
+                checked={state.filter.showWithOutProfilePicture}
+                onChange={handleScanFilter}
+              />
+              &nbsp;No Pic
+            </label>
+          </menu>
+
+          <div className="sidebar-buttons-grid">
+            <button
+              className="button-secondary"
+              onClick={() => {
+                const verifiedUsers = usersForDisplay.filter(u => u.is_verified);
+                const currentIds = new Set(state.selectedResults.map(u => u.id));
+                const toAdd = verifiedUsers.filter(u => !currentIds.has(u.id));
+                setState({ ...state, selectedResults: [...state.selectedResults, ...toAdd] });
+              }}
+            >
+              Verified
+            </button>
+            <button
+              className="button-secondary"
+              onClick={() => {
+                const privateUsers = usersForDisplay.filter(u => u.is_private);
+                const currentIds = new Set(state.selectedResults.map(u => u.id));
+                const toAdd = privateUsers.filter(u => !currentIds.has(u.id));
+                setState({ ...state, selectedResults: [...state.selectedResults, ...toAdd] });
+              }}
+            >
+              Private
+            </button>
+            <button
+              className="button-secondary"
+              onClick={() => {
+                const noPicUsers = usersForDisplay.filter(u => isWithoutProfilePicture(u));
+                const currentIds = new Set(state.selectedResults.map(u => u.id));
+                const toAdd = noPicUsers.filter(u => !currentIds.has(u.id));
+                setState({ ...state, selectedResults: [...state.selectedResults, ...toAdd] });
+              }}
+            >
+              No Pic
+            </button>
+            <button
+              className="button-secondary danger-text"
+              onClick={() => setState({ ...state, selectedResults: [] })}
+            >
+              Clear
+            </button>
+          </div>
+          <div className="sidebar-stats metric-stack">
+            <p><span>Displayed</span><strong>{usersForDisplay.length}</strong></p>
+            <p><span>Total scanned</span><strong>{state.results.length}</strong></p>
+            <p className="whitelist-counter">
+              <span>Whitelisted</span><strong>★ {state.whitelistedResults.length}</strong>
+            </p>
+          </div>
+
+          {state.percentage === 100 && (
+            <div className="sidebar-summary">
+              <h4>Scan Summary</h4>
+              <div className="summary-grid">
+                <div className="summary-item">
+                  <span>Non-Followers</span>
+                  <strong>{state.results.filter(u => !u.follows_viewer).length}</strong>
+                </div>
+                <div className="summary-item">
+                  <span>Verified</span>
+                  <strong>{state.results.filter(u => u.is_verified).length}</strong>
+                </div>
+                <div className="summary-item">
+                  <span>Private</span>
+                  <strong>{state.results.filter(u => u.is_private).length}</strong>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="sidebar-footer-controls">
+            <button
+              className="button-control button-pause"
+              onClick={pauseScan}
+            >
+              {scanningPaused ? "Resume" : "Pause"}
+            </button>
+            <div className="sidebar-pagination">
+              <div className="pagination-controls">
+                <a
+                  onClick={() => {
+                    if (state.page - 1 > 0) {
+                      setState({
+                        ...state,
+                        page: state.page - 1,
+                      });
+                    }
+                  }}
+                >
+                  ❮
+                </a>
+                <span>
+                  {state.page}/{getMaxPage(usersForDisplay)}
+                </span>
+                <a
+                  onClick={() => {
+                    if (state.page < getMaxPage(usersForDisplay)) {
+                      setState({
+                        ...state,
+                        page: state.page + 1,
+                      });
+                    }
+                  }}
+                >
+                  ❯
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
         <button
           className="unfollow"
@@ -159,12 +239,13 @@ export const Searching = ({
             });
           }}
         >
-          UNFOLLOW ({state.selectedResults.length})
+          Unfollow ({state.selectedResults.length})
         </button>
       </aside>
       <article className="results-container">
         <nav className="tabs-container">
-          <div
+          <button
+            type="button"
             className={`tab ${state.currentTab === "non_whitelisted" ? "tab-active" : ""}`}
             onClick={() => {
               if (state.currentTab === "non_whitelisted") {
@@ -173,13 +254,14 @@ export const Searching = ({
               setState({
                 ...state,
                 currentTab: "non_whitelisted",
-                selectedResults: [],
+                page: 1,
               });
             }}
           >
             Non-Whitelisted
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             className={`tab ${state.currentTab === "whitelisted" ? "tab-active" : ""}`}
             onClick={() => {
               if (state.currentTab === "whitelisted") {
@@ -188,12 +270,12 @@ export const Searching = ({
               setState({
                 ...state,
                 currentTab: "whitelisted",
-                selectedResults: [],
+                page: 1,
               });
             }}
           >
             Whitelisted
-          </div>
+          </button>
         </nav>
         {getCurrentPageUnfollowers(usersForDisplay, state.page).map(user => {
           const firstLetter = user.username.substring(0, 1).toUpperCase();
@@ -204,7 +286,7 @@ export const Searching = ({
                 <div className="flex grow align-center">
                   <div
                     className="avatar-container"
-                    onClick={e => {
+                    onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                       // Prevent selecting result when trying to add to whitelist.
                       e.preventDefault();
                       e.stopPropagation();
@@ -224,7 +306,7 @@ export const Searching = ({
                           assertUnreachable(state.currentTab);
                       }
                       localStorage.setItem(
-                        "WHITELISTED_RESULTS_STORAGE_KEY",
+                        WHITELISTED_RESULTS_STORAGE_KEY,
                         JSON.stringify(whitelistedResults),
                       );
                       setState({ ...state, whitelistedResults });
@@ -261,12 +343,14 @@ export const Searching = ({
                     </div>
                   )}
                 </div>
-                <input
-                  className="account-checkbox"
-                  type="checkbox"
-                  checked={state.selectedResults.indexOf(user) !== -1}
-                  onChange={e => toggleUser(e.currentTarget.checked, user)}
-                />
+                <div className="flex align-center gap-small">
+                  <input
+                    className="account-checkbox"
+                    type="checkbox"
+                    checked={state.selectedResults.indexOf(user) !== -1}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => toggleUser(e.currentTarget.checked, user)}
+                  />
+                </div>
               </label>
             </>
           );

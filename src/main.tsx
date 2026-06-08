@@ -2,14 +2,14 @@ import React, { ChangeEvent, useEffect, useState } from "react";
 import { render } from "react-dom";
 import "./styles.scss";
 
-import { User, UserNode } from "./model/user";
+import { Typename, User, UserNode } from "./model/user";
 import { Toast } from "./components/Toast";
 import { UserCheckIcon } from "./components/icons/UserCheckIcon";
 import { UserUncheckIcon } from "./components/icons/UserUncheckIcon";
 import { DEFAULT_TIME_BETWEEN_SEARCH_CYCLES,
   DEFAULT_TIME_BETWEEN_UNFOLLOWS,
   DEFAULT_TIME_TO_WAIT_AFTER_FIVE_SEARCH_CYCLES,
-  DEFAULT_TIME_TO_WAIT_AFTER_FIVE_UNFOLLOWS, INSTAGRAM_HOSTNAME, WHITELISTED_RESULTS_STORAGE_KEY } from "./constants/constants";
+  DEFAULT_TIME_TO_WAIT_AFTER_FIVE_UNFOLLOWS, INSTAGRAM_HOSTNAME } from "./constants/constants";
 import {
   assertUnreachable,
   getCookie,
@@ -22,6 +22,58 @@ import { Searching } from "./components/Searching";
 import { Toolbar } from "./components/Toolbar";
 import { Unfollowing } from "./components/Unfollowing";
 import { Timings } from "./model/timings";
+import { loadWhitelist, saveWhitelist, loadTimings, saveTimings } from "./utils/whitelist-manager";
+
+const LOCAL_PREVIEW_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+const isLocalPreview = LOCAL_PREVIEW_HOSTS.has(location.hostname);
+
+const _avatarUrl = (seed: string): string =>
+  `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=0f172a,1f2937,312e81&fontFamily=Verdana`;
+
+const _createPreviewUser = (
+  id: string,
+  username: string,
+  fullName: string,
+  options: { readonly isPrivate?: boolean; readonly isVerified?: boolean; readonly followsViewer?: boolean } = {},
+): UserNode => ({
+  id,
+  username,
+  full_name: fullName,
+  profile_pic_url: _avatarUrl(username),
+  is_private: options.isPrivate ?? false,
+  is_verified: options.isVerified ?? false,
+  followed_by_viewer: true,
+  follows_viewer: options.followsViewer ?? false,
+  requested_by_viewer: false,
+  reel: {
+    id,
+    expiring_at: 0,
+    has_pride_media: false,
+    latest_reel_media: 0,
+    seen: null,
+    owner: {
+      __typename: Typename.GraphUser,
+      id,
+      profile_pic_url: _avatarUrl(username),
+      username,
+    },
+  },
+});
+
+const _getPreviewUsers = (): readonly UserNode[] => [
+  _createPreviewUser("1", "alina.frames", "Alina Moreno", { isVerified: true }),
+  _createPreviewUser("2", "brassandbone", "Theo Walsh", { isPrivate: true }),
+  _createPreviewUser("3", "citrus.archive", "Mara Kim", { followsViewer: true }),
+  _createPreviewUser("4", "dawnledger", "Jon Bell", { isPrivate: true }),
+  _createPreviewUser("5", "elias.market", "Elias Noor", { isVerified: true }),
+  _createPreviewUser("6", "fieldnotes.studio", "Nadia Reyes"),
+  _createPreviewUser("7", "glint.supply", "Remy Park", { followsViewer: true }),
+  _createPreviewUser("8", "harbor.sequence", "Ivy Chen", { isPrivate: true }),
+  _createPreviewUser("9", "inkline.daily", "Sofia Grant"),
+  _createPreviewUser("10", "juniper.signal", "Cal Reed", { isVerified: true }),
+  _createPreviewUser("11", "keystone.labs", "Mina Torres"),
+  _createPreviewUser("12", "lowlight.club", "Owen Voss", { isPrivate: true }),
+];
 
 // pause
 let scanningPaused = false;
@@ -33,22 +85,47 @@ function pauseScan() {
 
 function App() {
   const [state, setState] = useState<State>({
-    status: "initial",
+    ...(
+      isLocalPreview && new URLSearchParams(location.search).get("preview") === "scanning"
+        ? {
+          status: "scanning",
+          page: 1,
+          searchTerm: "",
+          currentTab: "non_whitelisted",
+          percentage: 100,
+          results: _getPreviewUsers(),
+          selectedResults: _getPreviewUsers().slice(0, 3),
+          whitelistedResults: _getPreviewUsers().slice(10, 12),
+          filter: {
+            showNonFollowers: true,
+            showFollowers: false,
+            showVerified: true,
+            showPrivate: true,
+            showWithOutProfilePicture: true,
+          },
+        } as State
+        : { status: "initial" as const }
+    ),
   });
 
   const [toast, setToast] = useState<{ readonly show: false } | { readonly show: true; readonly text: string }>({
     show: false,
   });
 
-  //TODO FOR NEXT UPDATE SAVE THIS IN STORAGE
-  const [timings, setTimings] = useState<Timings>(
-    {
+  const [timings, setTimings] = useState<Timings>(() => {
+    const storedTimings = loadTimings();
+    return storedTimings ?? {
       timeBetweenSearchCycles: DEFAULT_TIME_BETWEEN_SEARCH_CYCLES,
       timeToWaitAfterFiveSearchCycles: DEFAULT_TIME_TO_WAIT_AFTER_FIVE_SEARCH_CYCLES,
       timeBetweenUnfollows: DEFAULT_TIME_BETWEEN_UNFOLLOWS,
       timeToWaitAfterFiveUnfollows: DEFAULT_TIME_TO_WAIT_AFTER_FIVE_UNFOLLOWS,
-    }
-  );
+    };
+  });
+
+  // Save timings whenever they change
+  useEffect(() => {
+    saveTimings(timings);
+  }, [timings]);
 
 
   let isActiveProcess: boolean;
@@ -68,9 +145,28 @@ function App() {
     if (state.status !== "initial") {
       return;
     }
-    const whitelistedResultsFromStorage: string | null = localStorage.getItem(WHITELISTED_RESULTS_STORAGE_KEY);
-    const whitelistedResults: readonly UserNode[] =
-      whitelistedResultsFromStorage === null ? [] : JSON.parse(whitelistedResultsFromStorage);
+    if (isLocalPreview) {
+      const previewUsers = _getPreviewUsers();
+      setState({
+        status: "scanning",
+        page: 1,
+        searchTerm: "",
+        currentTab: "non_whitelisted",
+        percentage: 100,
+        results: previewUsers,
+        selectedResults: previewUsers.slice(0, 3),
+        whitelistedResults: previewUsers.slice(10, 12),
+        filter: {
+          showNonFollowers: true,
+          showFollowers: false,
+          showVerified: true,
+          showPrivate: true,
+          showWithOutProfilePicture: true,
+        },
+      });
+      return;
+    }
+    const whitelistedResults = loadWhitelist();
     setState({
       status: "scanning",
       page: 1,
@@ -85,6 +181,7 @@ function App() {
         showFollowers: false,
         showVerified: true,
         showPrivate: true,
+        showWithOutProfilePicture: true,
       },
     });
   };
@@ -148,21 +245,25 @@ function App() {
     if (state.status !== "scanning") {
       return;
     }
+    const displayed = getUsersForDisplay(
+      state.results,
+      state.whitelistedResults,
+      state.currentTab,
+      state.searchTerm,
+      state.filter,
+    );
     if (e.currentTarget.checked) {
+      const currentIds = new Set(state.selectedResults.map(u => u.id));
+      const toAdd = displayed.filter(u => !currentIds.has(u.id));
       setState({
         ...state,
-        selectedResults: getUsersForDisplay(
-          state.results,
-          state.whitelistedResults,
-          state.currentTab,
-          state.searchTerm,
-          state.filter,
-        ),
+        selectedResults: [...state.selectedResults, ...toAdd],
       });
     } else {
+      const displayedIds = new Set(displayed.map(u => u.id));
       setState({
         ...state,
-        selectedResults: [],
+        selectedResults: state.selectedResults.filter(u => !displayedIds.has(u.id)),
       });
     }
   };
@@ -172,24 +273,38 @@ function App() {
     if (state.status !== "scanning") {
       return;
     }
+    const pageUsers = getCurrentPageUnfollowers(
+      getUsersForDisplay(
+        state.results,
+        state.whitelistedResults,
+        state.currentTab,
+        state.searchTerm,
+        state.filter,
+      ),
+      state.page,
+    );
     if (e.currentTarget.checked) {
+      const currentIds = new Set(state.selectedResults.map(u => u.id));
+      const toAdd = pageUsers.filter(u => !currentIds.has(u.id));
       setState({
         ...state,
-        selectedResults: getCurrentPageUnfollowers(
-          getUsersForDisplay(
-            state.results,
-            state.whitelistedResults,
-            state.currentTab,
-            state.searchTerm,
-            state.filter,
-          ),
-          state.page,
-        ),
+        selectedResults: [...state.selectedResults, ...toAdd],
       });
     } else {
+      const pageUserIds = new Set(pageUsers.map(u => u.id));
       setState({
         ...state,
-        selectedResults: [],
+        selectedResults: state.selectedResults.filter(u => !pageUserIds.has(u.id)),
+      });
+    }
+  };
+
+  const onWhitelistUpdate = (updatedWhitelist: readonly UserNode[]) => {
+    saveWhitelist(updatedWhitelist);
+    if (state.status === "scanning") {
+      setState({
+        ...state,
+        whitelistedResults: updatedWhitelist,
       });
     }
   };
@@ -222,7 +337,7 @@ function App() {
 
   useEffect(() => {
     const scan = async () => {
-      if (state.status !== "scanning") {
+      if (state.status !== "scanning" || isLocalPreview) {
         return;
       }
       const results = [...state.results];
@@ -256,7 +371,9 @@ function App() {
           }
           const newState: State = {
             ...prevState,
-            percentage: Math.floor((currentFollowedUsersCount / totalFollowedUsersCount) * 100),
+            // Fix: Changed from Math.floor to Math.round to ensure progress reaches 100%
+            // Math.floor would leave progress at 99% when near completion
+            percentage: Math.round((currentFollowedUsersCount / totalFollowedUsersCount) * 100),
             results,
           };
           return newState;
@@ -268,12 +385,23 @@ function App() {
           console.info("Scan paused");
         }
 
+        // Human-like behavior: Micro-pause between fetching chunks
+        const microPause = Math.floor(Math.random() * 1500) + 500; // 500ms - 2000ms
+        await sleep(microPause);
+
+        // Standard delay between cycles
         await sleep(Math.floor(Math.random() * (timings.timeBetweenSearchCycles - timings.timeBetweenSearchCycles * 0.7)) + timings.timeBetweenSearchCycles);
+        
         scrollCycle++;
         if (scrollCycle > 6) {
           scrollCycle = 0;
-          setToast({ show: true, text: `Sleeping ${timings.timeToWaitAfterFiveSearchCycles / 1000 } seconds to prevent getting temp blocked` });
-          await sleep(timings.timeToWaitAfterFiveSearchCycles);
+          // Variable long sleep to avoid patterns
+          const longSleepVar = Math.max(
+            0,
+            timings.timeToWaitAfterFiveSearchCycles + (Math.random() * 10000 - 5000), // +/- 5 seconds
+          );
+          setToast({ show: true, text: `Sleeping ${Math.round(longSleepVar / 1000)} seconds to prevent getting temp blocked` });
+          await sleep(longSleepVar);
         }
         setToast({ show: false });
       }
@@ -286,7 +414,7 @@ function App() {
 
   useEffect(() => {
     const unfollow = async () => {
-      if (state.status !== "unfollowing") {
+      if (state.status !== "unfollowing" || isLocalPreview) {
         return;
       }
 
@@ -298,7 +426,9 @@ function App() {
       let counter = 0;
       for (const user of state.selectedResults) {
         counter += 1;
-        const percentage = Math.floor((counter / state.selectedResults.length) * 100);
+        // Fix: Changed from Math.floor to Math.round to ensure progress reaches 100%
+        // Math.floor would leave progress at 99% when near completion
+        const percentage = Math.round((counter / state.selectedResults.length) * 100);
         try {
           await fetch(unfollowUserUrlGenerator(user.id), {
             headers: {
@@ -399,12 +529,13 @@ function App() {
         <Toolbar
           state={state}
           setState={setState}
-          scanningPaused={scanningPaused}
           isActiveProcess={isActiveProcess}
           toggleAllUsers={toggleAllUsers}
           toggleCurrentePageUsers={toggleCurrentePageUsers}
           setTimings={setTimings}
           currentTimings={timings}
+          whitelistedUsers={state.status === "scanning" ? state.whitelistedResults : loadWhitelist()}
+          onWhitelistUpdate={onWhitelistUpdate}
         ></Toolbar>
 
         {markup}
@@ -415,7 +546,7 @@ function App() {
   );
 }
 
-if (location.hostname !== INSTAGRAM_HOSTNAME) {
+if (location.hostname !== INSTAGRAM_HOSTNAME && !isLocalPreview) {
   alert("Can be used only on Instagram routes");
 } else {
   document.title = "InstagramUnfollowers";
